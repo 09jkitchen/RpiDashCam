@@ -4,7 +4,14 @@ import picamera
 import RPi.GPIO as GPIO
 from datetime import datetime
 from subprocess import call #call external commands
+import gps
 
+#Boot the gpsd process
+#call(["sudo killall gpsd"])
+#call(["sudo gpsd -n /dev/ttyAMA0 -F /var/run/gpsd.sock"])
+# Listen on port 2947 (gpsd) of localhost
+session = gps.gps("localhost", "2947")
+session.stream(gps.WATCH_ENABLE | gps.WATCH_NEWSTYLE)
 GPIO.setmode(GPIO.BCM)
 LED = 4
 Btn1 = 17
