@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import io
 import random
 import picamera
