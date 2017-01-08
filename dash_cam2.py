@@ -31,28 +31,35 @@ p = os.system(command)
 session = gps.gps("localhost", "2947")
 session.stream(gps.WATCH_ENABLE | gps.WATCH_NEWSTYLE)
 camera = picamera.PiCamera()
-camera.resolution = (1280, 720)
+camera.resolution = (1920, 1080)
 camera.framerate = 25
 camera.hflip = True
 camera.vflip = True
-stream = picamera.PiCameraCircularIO(camera, seconds=60)
+camera.annotate_background = picamera.Color('black')
+stream = picamera.PiCameraCircularIO(camera, seconds=45)
 camera.start_recording(stream, format='h264')
 
-GPIO.add_event_detect(Btn1, GPIO.FALLING, callback=Btn1_callback, bouncetime=500)
-GPIO.add_event_detect(Btn2, GPIO.FALLING, callback=Btn2_callback, bouncetime=500)
 recording=False
 end=False
+started = False
 
 start_time = 0
 end_time = 0
 
 def Btn1_callback(pin):
     global started
-	global start_time
-	start_time = time.time()
-    started = not started
+    global start_time
+    start_time = time.time()
+    started = True
     print('Button 1 pushed')
-    print(started)
+    #Blink the LED to show confirmation
+    GPIO.output(LED, GPIO.LOW)
+    time.sleep(0.25)
+    GPIO.output(LED, GPIO.HIGH)
+    time.sleep(0.25)
+    GPIO.output(LED, GPIO.LOW)
+    time.sleep(0.25)
+    GPIO.output(LED, GPIO.HIGH)
 
 def Btn2_callback(pin):
     global end
@@ -61,26 +68,32 @@ def Btn2_callback(pin):
 
 def write_now():
     global start_time
-	time_now = time.time()
-    if ((time_now - start_time) > 10): 
+    global started
+    time_now = time.time()
+    delta = (time_now - start_time)
+    #print(delta)
+    if ((delta > 10) & started): 
         return True
     else:
         return False
 
 def write_video(stream):
     global recording
-	global loc
+    global loc
+    global started
     print('Writing video!')
-	filename = loc + datetime.now().strftime("%B_%d_%s")
-	stream.copy_to(filename + '.h264') #Write video to file
-	print('Done Writing Video')
-            #Loop until file is made
-        #try:
-            #cmd="ffmpeg -r 25 -i " + filename + ".h264 -vcodec copy " + filename + ".mp4"
-            #call([cmd])
-            #print('Made .mp4')
-        #except:
-            #print('MP4 failed to create')
+    filename = loc + datetime.now().strftime("%B_%d_%s")
+    stream.copy_to(filename + '.h264') #Write video to file
+    print('Done Writing Video')
+    started = False
+    #Blink LED to show confirmation
+    GPIO.output(LED, GPIO.LOW)
+    time.sleep(0.5)
+    GPIO.output(LED, GPIO.HIGH)
+    time.sleep(0.5)
+    GPIO.output(LED, GPIO.LOW)
+    time.sleep(0.5)
+    GPIO.output(LED, GPIO.HIGH)
 
 def loop():
     GPIO.output(LED, GPIO.HIGH)
@@ -110,11 +123,21 @@ def get_time():
     #curr_time = datetime.now().strftime("%B_%d_%s")
     return overlay
 
+GPIO.add_event_detect(Btn1, GPIO.FALLING, callback=Btn1_callback, bouncetime=500)
+GPIO.add_event_detect(Btn2, GPIO.FALLING, callback=Btn2_callback, bouncetime=500)
+
+GPIO.output(LED, GPIO.LOW)
+time.sleep(30) #Give the camera & GPS some time to warm up
+GPIO.output(LED, GPIO.HIGH)
+
 while True:
-   	curr_time = get_time() #1Hz update rate
-	camera.annotate_text = curr_time
-		if write_now():
-			print('Start Recording')
-			write_video(stream)
-        if end:
-            camera.stop_recording()
+    #global camera
+    #global stream
+    curr_time = get_time() #1Hz update rate
+    camera.annotate_text = curr_time
+    if write_now():
+        print('Start Recording')
+        write_video(stream)
+    if end:
+        camera.stop_recording()
+        GPIO.output(LED, GPIO.LOW)
